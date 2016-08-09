@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 import random
 from collections import namedtuple
 from operator import attrgetter, itemgetter
@@ -7,10 +8,12 @@ class Replicate(object):
     def __init__(self, segsites, positions, samples, command=None, seeds=None):
         self.command = command
         self.seeds = seeds
-        assert(segsites == len(positions) == len(samples[0]))
+
         self.segsites = segsites
-        self.positions = positions
-        self.samples = samples
+        self.positions =  np.array(positions)
+        self.samples =  np.array(samples).T
+
+        assert(segsites == self.positions.size == self.samples.shape[0])
         self._pos_format = 1.4 # force some trailing zeros
 
     def __str__(self):
@@ -41,17 +44,17 @@ class MSReader(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         """
         Iterator over simulations.
         """
-        segsites = int(next(self._file_handle).strip().split(": ")[1])
-        positions = map(float, next(self._file_handle).strip().split(": ")[1].split(" "))
+        segsites = int(next(self._file_handle).strip().split(b": ")[1])
+        positions = list(map(float, next(self._file_handle).strip().split(b": ")[1].split(b" ")))
         samples = list()
         line = next(self._file_handle).strip()
-        while not line.startswith("//"):
+        while not line.startswith(b"//"):
             if len(line) > 0:
-                samples.append(line)
+                samples.append(np.array([i for i in line.decode()], dtype="int"))
             try:
                 line = next(self._file_handle).strip()
             except StopIteration:
@@ -73,7 +76,7 @@ class MSReader(object):
         the command and seeds).
         """
         # trailing space after command follows MS.
-        return "%s \n%s\n" % (ms.command, ' '.join(map(str, ms.seeds)))
+        return "%s \n%s\n" % (self.command, ' '.join(map(str, self.seeds)))
 
 if __name__ == "__main__":
     # as a test, this just returns the exact MS
